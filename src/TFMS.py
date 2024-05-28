@@ -284,5 +284,8 @@ COMMENTS: {Comments}
 EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
 SIGNATURE: {signature}
   """)
-        requests.post(f'{self.discord}, "content="{content}')
+        discord_dum = {'username':'Shane (Gooder)',
+                      'content': content}
+        # requests.post(f'{self.discord}, "content="{content}')
+        requests.post(self.discord, discord_dum) #Will this post???
 
