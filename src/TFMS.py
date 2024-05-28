@@ -73,13 +73,16 @@ class TFMS:
 
     def facility_stopper(self):
         centers = set()
+        tiers = 0
+        manual = False
         while(True):
             stopped_centers = input("Enter stopped centers. Leave a blank entry when completed: ").upper()
             stopped_centers = stopped_centers.replace(","," ")
             stopped_centers = stopped_centers.replace("  "," ")
             if stopped_centers != "":
                 if stopped_centers[1] == "T" and len(stopped_centers) == 2:
-                    centers_to_add = self.process_tiers(facility)
+                    tiers, centers_to_add = self.process_tiers(facility)
+                    manual = True
                     centers.add(centers_to_add)
                 elif stopped_centers[1] != "Z" and stopped_centers[1] != "-":
                     print(f"Sorry... not sure I understand what you mean by {stopped_centers}. Please try again.")
@@ -94,15 +97,26 @@ class TFMS:
                                 except:
                                     pass
                             elif facility.isalnum():
-                                centers_to_add = self.process_tiers(facility)
+                                tiers, centers_to_add = self.process_tiers(facility)
+                                manual = True
                                 centers.add(centers_to_add)
                     print(centers)
             else:
-                return centers
+                return manual, tiers, centers
 
     def process_tiers(self, center):
-        print("wip lol")
-        return "ZTL" #placeholder so it doesn't error...
+        #How many tiers are we looking for?
+        tiers = 0
+        tier_count = 0
+        neighbors = set()
+        if center[:-1].isdigit():
+            tier = center[-1:]
+            center = center[:-1]
+        while tiers < tier_count:
+            for neighbor in tier1_db:
+                neighbors.add(neighbor)
+            tiers = tiers + 1
+        return tier_count, neighbors #placeholder so it doesn't error...
         
     def airport_stopper(self):
         airports = set()
@@ -235,9 +249,12 @@ class TFMS:
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
         end_date = self.determine_date(end_time, adl_time)
-        stopped_facilities = self.facility_stopper()
+        manual, tiers, stopped_facilities = self.facility_stopper()
         if len(stopped_facilities) == 0:
             stopped_facilities.add(airport_center)
+        scope = "(MANUAL)"
+        if manual == False:
+            scope = f"(TIER {tiers}) "
         stopped_airports = self.airport_stopper()
         calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time)
         if len(stopped_airports) > 0:
@@ -256,7 +273,7 @@ ELEMENT TYPE: APT
 ADL TIME: {adl_time}Z
 GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z
 CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z
-FLT INCL: (MANUAL) {stopped_facilities}
+FLT INCL: {scope} {stopped_facilities}
 {stopped_airports}
 PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN
 NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays}
