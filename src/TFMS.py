@@ -3,10 +3,12 @@ import time
 import json
 
 class TFMS:
-    def __init__(self, airport_db, wp_db, json_url) -> None:
+    def __init__(self, airport_db, wp_db, json_url, tier1_db) -> None:
         self.json_url = json_url
         #Pull waypoint database
         self.waypoint_db = wp_db
+        #Tier 1 Database
+        self.tier1_db = tier1_db
         #Pull airports database
         self.airport_db = airport_db["airfields"]
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
