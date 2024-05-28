@@ -8,6 +8,7 @@ class Main():
     def __init__(self) -> None:
         airports_path = "./data/airports.json"
         waypoint_database = "./data/waypoint_database.json"
+        tier_1_database = "./data/neighbors.json"
 
         json_url = "https://data.vatsim.net/v3/vatsim-data.json"
 
@@ -25,11 +26,15 @@ class Main():
         waypoint_db = json.load(waypoint_file)
         waypoint_file.close()
 
+        # ---Open Tier 1 Database---
+        neighbors_file = open(tier_1_database, 'rb')
+        neighbors_db = json.load(neighbors_file)
+        neighbors_file.close()
 
         # TODO move this to it's own class
         print("Initializing setup...")
 
-        tfms = TFMS(airports, waypoint_db, json_url)
+        tfms = TFMS(airports, waypoint_db, json_url, neighbors_db)
 
 
         # thread1: Timer that updates flightplan data when I new JSON is uploaded
