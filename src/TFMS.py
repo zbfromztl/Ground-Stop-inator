@@ -82,7 +82,6 @@ class TFMS:
             if stopped_centers != "":
                 if stopped_centers[1] == "T" and len(stopped_centers) == 2:
                     tiers, centers_to_add = self.process_tiers(facility)
-                    manual = True
                     centers.add(centers_to_add)
                 elif stopped_centers[1] != "Z" and stopped_centers[1] != "-":
                     print(f"Sorry... not sure I understand what you mean by {stopped_centers}. Please try again.")
@@ -90,15 +89,16 @@ class TFMS:
                     for facility in stopped_centers.split(" "):
                         if len(facility) == 3:
                             centers.add(facility)
+                            manual = True
                         elif len(facility) == 4:
                             if facility[0] == "-":
                                 try:
                                     centers.remove(facility[1:])
+                                    manual = True
                                 except:
                                     pass
                             elif facility.isalnum():
                                 tiers, centers_to_add = self.process_tiers(facility)
-                                manual = True
                                 centers.add(centers_to_add)
                     print(centers)
             else:
