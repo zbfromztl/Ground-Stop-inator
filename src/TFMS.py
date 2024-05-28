@@ -53,8 +53,13 @@ class TFMS:
         while(True):
             end_time = input("Enter end time: ").upper()
             end_time = end_time.replace(" ", "")
-            if end_time.isdigit() and len(end_time) == 4:
-                if 0 <= int(end_time) < 2360: return end_time
+            if end_time.isdigit() and 3 <= len(end_time) <= 4:
+                if len(end_time) == 3: end_time = f"0{end_time}"
+                if 0 <= int(end_time) < 2360: 
+                    if end_time[-2:] > 59:
+                        print(f"I'm sorry. I am unable to process an end_time of {end_time}. Please try again.")
+                        continue
+                    else: return end_time
                 else:
                     print(f"I'm sorry. I am unable to process an end_time of {end_time}. Please try again.")
                 continue
