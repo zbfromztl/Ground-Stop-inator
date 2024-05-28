@@ -1,4 +1,4 @@
-{"centers":"ZTL":["ZDC","ZJX","ZHU","ZME","ZID"],
+{"centers":{"ZTL":["ZDC","ZJX","ZHU","ZME","ZID"],
   "ZJX":["ZHU","ZTL","ZMA","ZDC"],
   "ZMA":["ZJX","ZHU"],
   "ZDC":["ZBW","ZNY","ZOB","ZID","ZTL","ZJX"],
@@ -19,5 +19,5 @@
   "ZOA":["ZSE","ZLA","ZLC"],
   "ZLA":["ZOA","ZLC","ZDV","ZAB"],
   "HCF":["ZAN"],
-  "ZAN":["HCF"],
+  "ZAN":["HCF"]}
 }

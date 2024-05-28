@@ -56,7 +56,7 @@ class TFMS:
             if end_time.isdigit() and 3 <= len(end_time) <= 4:
                 if len(end_time) == 3: end_time = f"0{end_time}"
                 if 0 <= int(end_time) < 2360: 
-                    if end_time[-2:] > 59:
+                    if int(end_time[-2:]) > 59:
                         print(f"I'm sorry. I am unable to process an end_time of {end_time}. Please try again.")
                         continue
                     else: return end_time
@@ -76,7 +76,7 @@ class TFMS:
         else:#today
             return time.gmtime().tm_mday
 
-    def facility_stopper(self):
+    def facility_stopper(self, overlying_artcc):
         centers = set()
         tiers = 0
         manual = False
@@ -85,10 +85,11 @@ class TFMS:
             stopped_centers = stopped_centers.replace(","," ")
             stopped_centers = stopped_centers.replace("  "," ")
             if stopped_centers != "":
-                if stopped_centers[1] == "T" and len(stopped_centers) == 2:
-                    tiers, centers_to_add = self.process_tiers(facility)
-                    centers.add(centers_to_add)
-                elif stopped_centers[1] != "Z" and stopped_centers[1] != "-":
+                if stopped_centers[0] == "T" and len(stopped_centers) == 2:
+                    tiers, centers_to_add = self.process_tiers(stopped_centers, overlying_artcc)
+                    centers = centers.union(centers_to_add)
+                    # print(centers_to_add)
+                elif stopped_centers[0] != "Z" and stopped_centers[0] != "-":
                     print(f"Sorry... not sure I understand what you mean by {stopped_centers}. Please try again.")
                 else:
                     for facility in stopped_centers.split(" "):
@@ -103,31 +104,45 @@ class TFMS:
                                 except:
                                     pass
                             elif facility.isalnum():
-                                tiers, centers_to_add = self.process_tiers(facility)
-                                centers.add(centers_to_add)
+                                tiers, centers_to_add = self.process_tiers(stopped_centers, overlying_artcc)
+                                # centers = self.new_method(centers, centers_to_add)
                     print(centers)
             else:
                 return manual, tiers, centers
 
-    def process_tiers(self, center):
+    def new_method(self, centers, centers_to_add):
+        centers = centers.union(centers_to_add)
+        return centers
+
+    def process_tiers(self, intended_tier, overlying_artcc):
         #How many tiers are we looking for?
         tiers = 0
         tier_count = 0
         neighbors = set()
-        if center[:-1].isdigit():
-            tier = center[-1:]
-            center = center[:-1]
-            neighbors.add(center)
-        while tiers < tier_count:
-            try:
+        neighbors_to_add = set()
+        if intended_tier[-1:].isdigit():
+            tiers = intended_tier[-1:]
+            tiers = int(tiers)
+            intended_tier = intended_tier[:-1]
+            neighbors.add(overlying_artcc)
+            print(neighbors)
+        while tiers > tier_count:
+            try:                
                 for next_tier in neighbors:
-                    for neighbor in self.tier1_db[next_tier]:
-                        neighbors.add(neighbor)
-                tiers = tiers + 1
+                    print(next_tier)
+                    for neighbor in self.tier1_db['centers'][next_tier]:
+                        # print(self.tier1_db[next_tier])
+                        # print(next_tier)
+                        # print(neighbor)
+                        neighbors_to_add.add(neighbor)
+                neighbors = neighbors.union(neighbors_to_add)
+                neighbors_to_add = set()
+                print(f"{tiers} > {tier_count}")
+                tier_count = tier_count + 1
             except:
                 tier_count = tiers
-        # neighbors.remove(center)
-        return tier_count, neighbors #placeholder so it doesn't error...
+                print("exception D:")
+        return tiers, neighbors #placeholder so it doesn't error...
         
     def airport_stopper(self):
         airports = set()
@@ -192,7 +207,7 @@ class TFMS:
                         p_time = flight_plan.get("flight_plan").get("deptime")
                         origin = flight_plan.get("flight_plan").get("departure")
                         origin_center = "ZZZ"
-                        if origin is not None:
+                        if origin is not None and origin_center in self.airport_db[origin]["ARTCC"]:
                             origin_center = self.airport_db[origin]["ARTCC"]
                         data = {callsign : {"ptime":p_time,"origin":origin, "origin_center":origin_center}}
                         self.captured.update(data)
@@ -235,16 +250,21 @@ class TFMS:
         maxDelay = 0
         totalDelay = 0
         flights_delayed = 0
+        average_delay = 0
         for delayed_flight in affected:
-            int(end_hour) = end_time[2:]
-            int(end_minute) = end_time[-2:]
+            end_hour = end_time[:2]
+            end_hour = int(end_hour)
+            end_minute = end_time[-2:]
+            end_minute = int(end_minute)
             end_time = int(end_time)
             delay = 0
-            ptime = int(self.captured[delayed_flight]["ptime"])
+            ptime = self.captured[delayed_flight]["ptime"]
             # if end_time < int(ptime):
             #     end_time = end_time + 2400
-            int(p_hour) = ptime[2:]
-            int(p_minute) = ptime[-2:]
+            p_hour = ptime[:2]
+            p_hour = int(p_hour)
+            p_minute = ptime[-2:]
+            p_minute = int(p_minute)
             if end_hour < p_hour:
                 p_hour = p_hour + 24
             # if end_minute < p_minute:
@@ -255,21 +275,30 @@ class TFMS:
                 delaymin = delaymin + 60
                 delayhour = delayhour - 1
             while delayhour > 0:
-                delayhour = delayhour + 1
-                delaymin = delaymin - 60
-            while delaymin <= 0 and delayhour <= 0: #Means flight not subject to stop?
-                affected.pop(delayed_flight)
-                pass
+                delayhour = delayhour - 1
+                delaymin = delaymin + 60
+            if delaymin <= 0 and delayhour <= 0: #Means flight not subject to stop?
+                affected.remove(delayed_flight)
             # delay = end_time - ptime
-            int(delay) = f"{delayhour}{delaymin}"
-            delays.append(delay)
-            if delay > maxDelay: maxDelay = delay
-            totalDelay = totalDelay + delay
-            flights_delayed = flights_delayed + 1
+            if delayed_flight in affected:
+                delay = f"{delayhour}{delaymin}"
+                delay = int(delay)
+                delays.append(delay)
+                if delay > maxDelay: maxDelay = delay
+                totalDelay = totalDelay + delay
+                flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
         return totalDelay, maxDelay, average_delay
         
+    def format_lists_for_display(self, list):
+        the_list = str(list)
+        the_list = the_list.replace("'","")
+        the_list = the_list.replace("{","")
+        the_list = the_list.replace("}","")
+        return the_list
+
+
     def generate_advisory(self):
         airport = self.determine_airport()
         airport_center = self.airport_db.get(airport).get("ARTCC")
@@ -280,15 +309,17 @@ class TFMS:
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
         end_date = self.determine_date(end_time, adl_time)
-        manual, tiers, stopped_facilities = self.facility_stopper()
+        manual, tiers, stopped_facilities = self.facility_stopper(airport_center)
         if len(stopped_facilities) == 0:
             stopped_facilities.add(airport_center)
+        stopped_facilities = self.format_lists_for_display(stopped_facilities)
         scope = "(MANUAL)"
         if manual == False:
             scope = f"(TIER {tiers}) "
         stopped_airports = self.airport_stopper()
         calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time)
         if len(stopped_airports) > 0:
+            stopped_airports = self.format_lists_for_display(stopped_airports)
             stopped_airports = f"ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"
         else:
             stopped_airports = ""
@@ -297,7 +328,7 @@ class TFMS:
         Comments = input("Comments: ").upper()
         signature = f"{time.gmtime().tm_year}/{time.gmtime().tm_mon}/{time.gmtime().tm_mday} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
         content = f"vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
-        content1 = (f"""
+        content1 = (f"""```
 vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP
 CTL ELEMENT: {airport[-3:]}
 ELEMENT TYPE: APT
@@ -313,10 +344,10 @@ IMPACTING CONDITION: {Condition}
 COMMENTS: {Comments}
 
 EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
-SIGNATURE: {signature}
+SIGNATURE: {signature}```
   """)
         discord_dum = {'username':'Shane (Gooder)',
-                      'content': content}
-        # requests.post(f'{self.discord}, "content="{content}')
+                      'content': content1}
         requests.post(self.discord, discord_dum) #Will this post???
+        # print(content1)
 
