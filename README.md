@@ -1,6 +1,6 @@
 Version: Python 3.11.3
 # Overview:
-  * Program to generate accurate-ish ground stop times for the vATCSCC on the VATSIM network.
+  * Advisory builder to assist in generating accurate-ish ground stop times for the vATCSCC on the VATSIM network.
   * Code Author: [Zack B)](https://github.com/zbfromztl)
     * with support from: Simon Heck [(Simon-Heck)](https://github.com/Simon-Heck)
 
@@ -26,7 +26,6 @@ Run python on [main.py](src/main.py). For example:
 ```
 python main.py
 ```
-
 
 # Commands:
  * :)
