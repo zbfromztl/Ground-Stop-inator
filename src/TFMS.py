@@ -127,11 +127,9 @@ class TFMS:
             tiers = int(tiers)
             intended_tier = intended_tier[:-1]
             neighbors.add(overlying_artcc)
-            print(neighbors)
         while tiers > tier_count:
             try:                
                 for next_tier in neighbors:
-                    print(next_tier)
                     for neighbor in self.tier1_db['centers'][next_tier]:
                         # print(self.tier1_db[next_tier])
                         # print(next_tier)
@@ -139,7 +137,6 @@ class TFMS:
                         neighbors_to_add.add(neighbor)
                 neighbors = neighbors.union(neighbors_to_add)
                 neighbors_to_add = set()
-                print(f"{tiers} > {tier_count}")
                 tier_count = tier_count + 1
             except:
                 tier_count = tiers
@@ -209,7 +206,7 @@ class TFMS:
                         p_time = flight_plan.get("flight_plan").get("deptime")
                         origin = flight_plan.get("flight_plan").get("departure")
                         origin_center = "ZZZ"
-                        if origin is not None and origin_center in self.airport_db[origin]["ARTCC"]:
+                        if origin is not None and origin in self.airport_db:
                             origin_center = self.airport_db[origin]["ARTCC"]
                         data = {callsign : {"ptime":p_time,"origin":origin, "origin_center":origin_center}}
                         self.captured.update(data)
@@ -254,7 +251,7 @@ class TFMS:
         flights_delayed = 0
         average_delay = 0
         for delayed_flight in affected:
-            print(delayed_flight)
+            end_time = str(end_time)
             end_hour = end_time[:2]
             end_hour = int(end_hour)
             end_minute = end_time[-2:]
