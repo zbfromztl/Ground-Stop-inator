@@ -12,6 +12,7 @@ class TFMS:
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
         ground_stopped = []
+        self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
         pass
 
     def determine_airport(self):
@@ -227,11 +228,12 @@ class TFMS:
             stopped_airports = f"ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"
         else:
             stopped_airports = ""
-        POE = input("Probability of extension? NONE/LOW/MEDIUM/HIGH").upper()
+        POE = input("Probability of extension? NONE/LOW/MEDIUM/HIGH ").upper()
         Condition = input("Impacting Conditions: ").upper()
-        Comments = input("Comments:").upper()
+        Comments = input("Comments: ").upper()
         signature = f"{time.gmtime().tm_year}/{time.gmtime().tm_mon}/{time.gmtime().tm_mday} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
-        print(f"""
+        content = f"vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
+        content1 = (f"""
 vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP
 CTL ELEMENT: {airport[-3:]}
 ELEMENT TYPE: APT
@@ -249,4 +251,5 @@ COMMENTS: {Comments}
 EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
 SIGNATURE: {signature}
   """)
+        requests.post(f'{self.discord}, "content="{content}')
 
