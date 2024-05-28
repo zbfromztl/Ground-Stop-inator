@@ -34,7 +34,7 @@ class TFMS:
 
     def determine_start_time(self):
         while(True):
-            start_time = input("(LEAVE BLANK IF NOW!) Enter start time: ").upper()
+            start_time = input("(LEAVE BLANK IF NOW OR IN THE PAST!) Enter start time: ").upper()
             start_time = start_time.replace(" ", "")
             if start_time == "": 
                 start_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
@@ -76,18 +76,32 @@ class TFMS:
             stopped_centers = stopped_centers.replace(","," ")
             stopped_centers = stopped_centers.replace("  "," ")
             if stopped_centers != "":
-                for facility in stopped_centers.split(" "):
-                    if len(facility) == 3:
-                        centers.add(facility)
-                    elif len(facility) == 4 and facility[0] == "-":
-                        try:
-                            centers.remove(facility[1:])
-                        except:
-                            pass
-                print(centers)
+                if stopped_centers[1] == "T" and len(stopped_centers) == 2:
+                    centers_to_add = self.process_tiers(facility)
+                    centers.add(centers_to_add)
+                elif stopped_centers[1] != "Z" and stopped_centers[1] != "-":
+                    print(f"Sorry... not sure I understand what you mean by {stopped_centers}. Please try again.")
+                else:
+                    for facility in stopped_centers.split(" "):
+                        if len(facility) == 3:
+                            centers.add(facility)
+                        elif len(facility) == 4:
+                            if facility[0] == "-":
+                                try:
+                                    centers.remove(facility[1:])
+                                except:
+                                    pass
+                            elif facility.isalnum():
+                                centers_to_add = self.process_tiers(facility)
+                                centers.add(centers_to_add)
+                    print(centers)
             else:
                 return centers
-            
+
+    def process_tiers(self, center):
+        print("wip lol")
+        return "ZTL" #placeholder so it doesn't error...
+        
     def airport_stopper(self):
         airports = set()
         while(True):
