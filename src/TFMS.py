@@ -13,7 +13,7 @@ class TFMS:
         self.airport_db = airport_db["airfields"]
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
-        ground_stopped = []
+        ground_stopped = [] #this doesn't do anything rn lool
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
         pass
 
@@ -112,10 +112,13 @@ class TFMS:
         if center[:-1].isdigit():
             tier = center[-1:]
             center = center[:-1]
+            neighbors.add(center)
         while tiers < tier_count:
-            for neighbor in tier1_db:
-                neighbors.add(neighbor)
+            for next_tier in neighbors:
+                for neighbor in self.tier1_db[next_tier]:
+                    neighbors.add(neighbor)
             tiers = tiers + 1
+        # neighbors.remove(center)
         return tier_count, neighbors #placeholder so it doesn't error...
         
     def airport_stopper(self):
@@ -225,12 +228,32 @@ class TFMS:
         totalDelay = 0
         flights_delayed = 0
         for delayed_flight in affected:
+            int(end_hour) = end_time[2:]
+            int(end_minute) = end_time[-2:]
             end_time = int(end_time)
             delay = 0
             ptime = int(self.captured[delayed_flight]["ptime"])
-            if end_time < int(ptime):
-                end_time = end_time + 2400
-            delay = end_time - ptime
+            # if end_time < int(ptime):
+            #     end_time = end_time + 2400
+            int(p_hour) = ptime[2:]
+            int(p_minute) = ptime[-2:]
+            if end_hour < p_hour:
+                p_hour = p_hour + 24
+            # if end_minute < p_minute:
+            #     p_minute = p_minute + 60
+            delayhour = end_hour - p_hour
+            delaymin = end_minute - p_minute
+            while delaymin < 0 and delayhour > 0:
+                delaymin = delaymin + 60
+                delayhour = delayhour - 1
+            while delayhour > 0:
+                delayhour = delayhour + 1
+                delaymin = delaymin - 60
+            while delaymin <= 0 and delayhour <= 0: #Means flight not subject to stop?
+                affected.pop(delayed_flight)
+                pass
+            # delay = end_time - ptime
+            int(delay) = f"{delayhour}{delaymin}"
             delays.append(delay)
             if delay > maxDelay: maxDelay = delay
             totalDelay = totalDelay + delay
