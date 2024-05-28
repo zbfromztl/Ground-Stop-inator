@@ -105,9 +105,11 @@ class TFMS:
                                     pass
                             elif facility.isalnum():
                                 tiers, centers_to_add = self.process_tiers(stopped_centers, overlying_artcc)
+                                centers = centers.union(centers_to_add)
                                 # centers = self.new_method(centers, centers_to_add)
-                    print(centers)
+                    print(f"STOPPED CENTERS: {centers}")
             else:
+                print(f"STOPPED CENTERS: {centers}")
                 return manual, tiers, centers
 
     def new_method(self, centers, centers_to_add):
@@ -252,6 +254,7 @@ class TFMS:
         flights_delayed = 0
         average_delay = 0
         for delayed_flight in affected:
+            print(delayed_flight)
             end_hour = end_time[:2]
             end_hour = int(end_hour)
             end_minute = end_time[-2:]
@@ -279,8 +282,9 @@ class TFMS:
                 delaymin = delaymin + 60
             if delaymin <= 0 and delayhour <= 0: #Means flight not subject to stop?
                 affected.remove(delayed_flight)
+            else:
             # delay = end_time - ptime
-            if delayed_flight in affected:
+            # if delayed_flight in affected:
                 delay = f"{delayhour}{delaymin}"
                 delay = int(delay)
                 delays.append(delay)
@@ -300,6 +304,7 @@ class TFMS:
 
 
     def generate_advisory(self):
+        print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
         airport = self.determine_airport()
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
@@ -312,7 +317,6 @@ class TFMS:
         manual, tiers, stopped_facilities = self.facility_stopper(airport_center)
         if len(stopped_facilities) == 0:
             stopped_facilities.add(airport_center)
-        stopped_facilities = self.format_lists_for_display(stopped_facilities)
         scope = "(MANUAL)"
         if manual == False:
             scope = f"(TIER {tiers}) "
@@ -320,9 +324,11 @@ class TFMS:
         calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time)
         if len(stopped_airports) > 0:
             stopped_airports = self.format_lists_for_display(stopped_airports)
-            stopped_airports = f"ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"
+            stopped_airports = f"""
+            ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"""
         else:
             stopped_airports = ""
+        stopped_facilities = self.format_lists_for_display(stopped_facilities)
         POE = input("Probability of extension? NONE/LOW/MEDIUM/HIGH ").upper()
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
@@ -335,8 +341,7 @@ ELEMENT TYPE: APT
 ADL TIME: {adl_time}Z
 GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z
 CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z
-FLT INCL: {scope} {stopped_facilities}
-{stopped_airports}
+FLT INCL: {scope} {stopped_facilities} {stopped_airports}
 PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN
 NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays}
 PROBABILITY OF EXTENSION: {POE}
