@@ -119,10 +119,13 @@ class TFMS:
             center = center[:-1]
             neighbors.add(center)
         while tiers < tier_count:
-            for next_tier in neighbors:
-                for neighbor in self.tier1_db[next_tier]:
-                    neighbors.add(neighbor)
-            tiers = tiers + 1
+            try:
+                for next_tier in neighbors:
+                    for neighbor in self.tier1_db[next_tier]:
+                        neighbors.add(neighbor)
+                tiers = tiers + 1
+            except:
+                tier_count = tiers
         # neighbors.remove(center)
         return tier_count, neighbors #placeholder so it doesn't error...
         
