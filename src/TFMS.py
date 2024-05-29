@@ -18,6 +18,17 @@ class TFMS:
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
         pass
 
+    def listener(self):
+        while(True):
+            command = input("Good afternoon! What command would you like to run? ").upper()
+            # ? maybe? command_matrix = ["command":"function"]
+            if command in ("HELP","COMMANDS","CMDS","?"):
+                print("Available commands are: ")
+            elif command in ("GS","GROUNDSTOP","STOP"):
+                self.generate_ground_stop()
+            else:
+                print("Sorry... not sure I understand. Perhaps you should run the help command?")
+    
     def determine_airport(self):
         while(True):
             airport = input("Enter airfield: ").upper()
