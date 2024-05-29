@@ -329,6 +329,37 @@ class TFMS:
                   'content':content}
         requests.post(self.discord, staging)
 
+    def arrival_delays(self):
+        advisory_number = self.advisory_numberinator()
+        airport = self.determine_airport()
+        adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+        airport_center = self.airport_db.get(airport).get("ARTCC")
+        airport_long_name = self.airport_db.get(airport).get("NAME")
+        start_time = self.determine_start_time()
+        start_date = self.determine_date(start_time, adl_time)
+        end_time = self.determine_end_time()
+        end_date = self.determine_date(end_time, adl_time)
+        Condition = input("Impacting Condition(s): ").upper()
+        Duration = input("Length of Holding (Minutes): ").upper()
+        Comments = input("Remarks: ").upper()
+        content = f"""vATCSCC ADVZY {advisory_number} {time.gmtime().strftime('%m/%d/%Y')} {airport_long_name} ARRIVAL DELAYS
+EVENT TIME: {start_date}/{start_time} - {end_date}/{end_time}
+CONSTRAINED FACILITIES: {airport_center}
+USERS CAN EXPECT ARRIVAL DELAYS / AIRBORNE HOLDING INTO 
+{airport_long_name} AIRPORT OF UP TO {Duration} MINUTES DUE TO 
+{Condition} IMPACTING THE TERMINAL(S) / ARRIVAL ROUTES. {Comments}
+UPDATES WILL FOLLOW IF NECESSARY
+
+{start_date}{start_time} - {end_date}{end_time}
+{time.gmtime().strftime('%y/%m/%d %H:%M')}
+        """
+        print("Preview:")
+        print(content)
+        verify = input("Do you want to publish this advisory?").upper()
+        if verify[0] == "Y": self.publish_to_discord("ARRIVAL DELAY ALERT",content)
+        print("Returning to menu.")
+        
+    
     def cdr_swap_statement(self):
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
@@ -365,8 +396,16 @@ ORIG                DEST                 ROUTE
                                          WEATHER. USERS SHOULD FILE 
                                          NORMAL ROUTES BUT FUEL     
                                          ACCORDINGLY.
+                                         
+{start_date}{start_time} - {end_date}{end_time}
+{time.gmtime().strftime('%y/%m/%d %H:%M')}
         """
-        self.publish_to_discord("Shane (real)",content)
+        
+        print("Preview:")
+        print(content)
+        verify = input("Do you want to publish this advisory?").upper()
+        if verify[0] == "Y": self.publish_to_discord("Shane (real)",content)
+        print("Returning to menu.")
         
     def generate_ground_stop(self):
         print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
@@ -423,7 +462,13 @@ COMMENTS: {Comments}
 EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
 SIGNATURE: {signature}```
   """)
-        self.publish_to_discord("Shane (Goodest)", content1)
+        
+        print("Preview:")
+        print(content)
+        verify = input("Do you want to publish this advisory?").upper()
+        if verify[0] == "Y": self.publish_to_discord("Shane (Goodest)",content1)
+        print("Returning to menu.")
+        # self.publish_to_discord("Shane (Goodest)", content1)
         # discord_dum = {'username':'Shane (Gooder)',
         #               'content': content1}
         # requests.post(self.discord, discord_dum) #Will this post???
