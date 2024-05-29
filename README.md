@@ -14,7 +14,7 @@ Version: Python 3.11.3
  - [ ] Add more advisory types
  - [X] Add discord bot integration
  - [ ] Clean 'er up
-  - [ ] Especially stuff involving dates...
+   - [ ] Especially stuff involving dates...
 
 # Features:
   * Yo mama
