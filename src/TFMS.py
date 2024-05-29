@@ -352,9 +352,9 @@ class TFMS:
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
         signature = f"{time.gmtime().tm_year}/{time.gmtime().tm_mon}/{time.gmtime().tm_mday} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
-        content = f"vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
+        content = f"vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
         content1 = (f"""```
-vATCSCC ADVZY 000 {airport[-3:]}/{airport_center} CDM GROUND STOP
+vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP
 CTL ELEMENT: {airport[-3:]}
 ELEMENT TYPE: APT
 ADL TIME: {adl_time}Z
