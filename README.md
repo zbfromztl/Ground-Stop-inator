@@ -31,4 +31,4 @@ python main.py
 
 
 # Commands:
- * :)
+ * HELP
