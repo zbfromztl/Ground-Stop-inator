@@ -14,6 +14,7 @@ class TFMS:
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
         ground_stopped = [] #this doesn't do anything rn lool
+        advisory_no = 001
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
         pass
 
@@ -300,7 +301,7 @@ class TFMS:
         return the_list
 
 
-    def generate_advisory(self):
+    def generate_ground_stop(self):
         print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
         airport = self.determine_airport()
         airport_center = self.airport_db.get(airport).get("ARTCC")
