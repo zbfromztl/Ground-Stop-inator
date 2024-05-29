@@ -35,16 +35,18 @@ class TFMS:
                 self.set_advisory_number()
             elif command in ("PROGRAMS"):
                 print(self.ground_stopped)
+            elif command in ("HOTLINE"):
+                self.hotline()
             else:
                 print("Sorry... not sure I understand. Perhaps you should run the help command?")
 
 
     def set_advisory_number(self):
-        print(f"Current advisory number: {self.advisory_num}.")
+        print(f"Current advisory number: {self.advisory_num+1}.")
         new_number = input("Input new advisory number: ")
         if new_number.isdigit():
-            self.advisory_num = new_number
-            print(f"Advisory number successfully changed to {self.advisory_num}")
+            self.advisory_num = int(new_number)
+            print(f"Advisory number successfully changed to {self.advisory_num}.")
         else:
             print("Error. Returning to main menu.")
 
@@ -130,6 +132,7 @@ class TFMS:
                 if stopped_centers[0] == "T" and len(stopped_centers) == 2:
                     tiers, centers_to_add = self.process_tiers(stopped_centers, overlying_artcc)
                     centers = centers.union(centers_to_add)
+                    print(centers)
                     # print(centers_to_add)
                 elif stopped_centers[0] != "Z" and stopped_centers[0] != "-":
                     print(f"Sorry... not sure I understand what you mean by {stopped_centers}. Please try again.")
@@ -148,6 +151,7 @@ class TFMS:
                             elif facility.isalnum():
                                 tiers, centers_to_add = self.process_tiers(stopped_centers, overlying_artcc)
                                 centers = centers.union(centers_to_add)
+                                print(centers)
                                 # centers = self.new_method(centers, centers_to_add)
                     print(f"STOPPED CENTERS: {centers}")
             else:
@@ -332,13 +336,16 @@ class TFMS:
                 flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
-        self.ground_stopped.update({control_element:{"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}}})
-        if self.ground_stopped[control_element].get("CUM_START") is None:
-            self.ground_stopped[control_element].update({control_element:{"CUM_START":f"{start_date}/{start_time}"}})
+            average_delay = average_delay.__floor__()
+        self.ground_stopped.update({control_element:{"Prog_Info":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}}})
+        if self.ground_stopped[control_element].get("Prog_Info").get("CUM_START") is None:
+            self.ground_stopped[control_element]["Prog_Info"].update({"CUM_START":f"{start_date}/{start_time}"})
+        # print(self.ground_stopped[control_element]["Prog_Info"]["CUM_START"])
         for aircraft in delays:
             proposed_time = delays[aircraft]["proposed"]
             the_total_delay = delays[aircraft]["total_delay"]
-            self.ground_stopped.update({control_element:{aircraft:{"proposed":proposed_time,"total_delay":the_total_delay}}})
+            self.ground_stopped[control_element].update({aircraft:{"proposed":proposed_time,"total_delay":the_total_delay}})
+        print(f"PROGRAM INFORMATION: {self.ground_stopped[control_element]}")
         return totalDelay, maxDelay, average_delay
         
     def format_lists_for_display(self, list):
@@ -359,15 +366,74 @@ class TFMS:
         date = str(time.gmtime().tm_mday)
         if len(date) < 2: date = f"0{date}"
         header_date = f"{mon}/{date}/{time.gmtime().tm_year}"
-        sig_date_time = f"{str(time.gmtime().tm_year)[-2:]}/{mon}/{date} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
+        hour = str(time.gmtime().tm_hour)
+        if len(hour) < 2: hour = f"0{hour}"
+        min = str(time.gmtime().tm_min)
+        if len(min) < 2: min = f"0{min}"
+
+        sig_date_time = f"{str(time.gmtime().tm_year)[-2:]}/{mon}/{date} {hour}:{min}"
         return header_date, sig_date_time
     
+    def preview(self, content):
+        print("Preview:")
+        print(content)
+        while True:
+            verify = input("Do you want to publish this advisory? ").upper()
+            if verify == "" or verify[0] == "Y": return True
+            else: return False 
+        
     def format_time(self):
         hour = str(time.gmtime().tm_hour)
         if len(hour) < 2: hour = f"0{hour}"
         min = str(time.gmtime().tm_min)
         if len(min) < 2: min = f"0{min}"
         return f"{hour}{min}"
+    
+    def hotline(self):
+        advisory_number = self.advisory_numberinator()
+        header_date, sig_date_time = self.format_signatures()
+        hotline_name = input("Which hotline would you like to open/close? ").upper()
+        status = input(f"Are you activating or deactivating the {hotline_name} hotline? ").upper()
+        if status[0] == "A": status = "ACTIVATING" 
+        else: status = "DEACTIVATING"
+        adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+        start_time = self.determine_start_time()
+        start_date = self.determine_date(start_time, adl_time)
+        end_time = self.determine_end_time()
+        end_date = self.determine_date(end_time, adl_time)
+        constrained_facs = input("What facilities are constrained? Enter all that apply.").upper()
+        if status == "ACTIVATING":
+            constrained_reason = input("Why is the hotline being activated? (VOLUME/WEATHER/OTHER) ").upper()
+            location = input("Where is the hotline being hosted? (VATUSA TEAMSPEAK)").upper()
+            location_link = input("Is there an IP/PIN to join? (TS.VATUSA.NET, NO PIN)").upper()
+            participation_type = input("Is participation mandatory or recommended?").upper()
+            participation_parties = input(f"Who is participation {participation_type} for?").upper()
+            poc = input("Who is the point of contact if there are issues?").upper()
+            content = f"""```vATCSCC ADVZY {advisory_number} {header_date} {hotline_name} HOTLINE_FYI
+EVENT TIME: {start_date}/{start_time} - {end_date}/{end_time}
+CONSTRAINED FACILITIES: {constrained_facs}
+THE {hotline_name} HOTLINE IS BEING ACTIVATED TO ADDRESS {constrained_reason} IN {constrained_facs}.
+THE LOCATION IS THE {location}, {hotline_name} HOTLINE, {location_link}.
+PARTICIPATION IS {participation_type} FOR {participation_parties}. AFFECTED
+MAJOR UNDERLYING FACILITIES ARE STRONGLY ENCOURAGED TO ATTEND. ALL OTHER
+PARTICIPANTS ARE WELCOME TO JOIN. PLEASE MESSAGE {poc} IF YOU HAVE ISSUES OR QUESTIONS.
+
+{start_date}{start_time} - {end_date}{end_time}
+{sig_date_time}```
+"""
+        else:
+            content = f"""```vATCSCC ADVZY {advisory_number} {header_date} {hotline_name} HOTLINE_FYI
+EVENT TIME: {time.gmtime().tm_mday}/{start_time} - {time.gmtime().tm_mday}/{end_time}
+CONSTRAINED FACILITIES: {constrained_facs}
+THE {hotline_name} HOTLINE IS NOW TERMINATED.
+
+{time.gmtime().tm_mday}{start_time} - {time.gmtime().tm_mday}{end_time}
+{sig_date_time}```
+            """
+
+        if self.preview(content): self.publish_to_discord("HOTLINE STATUS",content)
+        print("Returning to menu.")
+
         
     def arrival_delays(self):
         advisory_number = self.advisory_numberinator()
@@ -383,21 +449,18 @@ class TFMS:
         Duration = input("Length of Holding (Minutes): ").upper()
         Comments = input("Remarks: ").upper()
         header_date, sig_date_time = self.format_signatures()
-        content = f"""vATCSCC ADVZY {advisory_number} {header_date} {airport_long_name} ARRIVAL DELAYS
+        content = f"""```vATCSCC ADVZY {advisory_number} {header_date} {airport_long_name} ARRIVAL DELAYS
 EVENT TIME: {start_date}/{start_time} - {end_date}/{end_time}
 CONSTRAINED FACILITIES: {airport_center}
 USERS CAN EXPECT ARRIVAL DELAYS / AIRBORNE HOLDING INTO 
 {airport_long_name} AIRPORT OF UP TO {Duration} MINUTES DUE TO 
 {Condition} IMPACTING THE TERMINAL(S) / ARRIVAL ROUTES. {Comments}
-UPDATES WILL FOLLOW IF NECESSARY
+UPDATES WILL FOLLOW IF NECESSARY.
 
 {start_date}{start_time} - {end_date}{end_time}
-{sig_date_time}
+{sig_date_time}```
         """
-        print("Preview:")
-        print(content)
-        verify = input("Do you want to publish this advisory? ").upper()
-        if verify[0] == "Y": self.publish_to_discord("ARRIVAL DELAY ALERT",content)
+        if self.preview(content): self.publish_to_discord("ARRIVAL DELAY ALERT",content)
         print("Returning to menu.")
         
     
@@ -418,7 +481,10 @@ UPDATES WILL FOLLOW IF NECESSARY
         Restrictions = input("Associated Restrictions: ").upper()
         Modifies = input("Modifies route structure in (list previous advisories, or, leave blank): ").upper()
         header_date, sig_date_time = self.format_signatures()
-        content = f"""vATCSCC ADVZY {advisory_number} DCC {header_date} ROUTE FYI
+        target_space_distance = 20 - len(airport)
+        space = ""
+        while len(space) < target_space_distance: space = f" {space}"
+        content = f"""```vATCSCC ADVZY {advisory_number} DCC {header_date} ROUTE FYI
 NAME: {airport}_CDRS_SWAP
 CONSTRAINED AREA: {airport_center}
 REASON: {Condition}
@@ -434,20 +500,17 @@ ROUTES:
 
 ORIG                DEST                 ROUTE
 ----                ----                 -----
-{airport}                UNKN                 CDR RTE:DEPARTURES CAN     
+{airport}{space}UNKN                 CDR RTE:DEPARTURES CAN     
                                          EXPECT CDRS/SWAP DUE TO    
                                          WEATHER. USERS SHOULD FILE 
                                          NORMAL ROUTES BUT FUEL     
                                          ACCORDINGLY.
                                          
 {start_date}{start_time} - {end_date}{end_time}
-{sig_date_time}
+{sig_date_time}```
         """
         
-        print("Preview:")
-        print(content)
-        verify = input("Do you want to publish this advisory? ").upper()
-        if verify[0] == "Y": self.publish_to_discord("Shane (real)",content)
+        if self.preview(content): self.publish_to_discord("Shane (real)",content)
         print("Returning to menu.")
         
     def generate_ground_stop(self):
@@ -456,12 +519,7 @@ ORIG                DEST                 ROUTE
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
         control_element = airport
-        prev_delays = ""
-        if control_element in self.ground_stopped:
-            prev_delays = self.ground_stopped[control_element]["PREV_DELAYS"]
-            prev_delay_amounts = f"{prev_delays['Total']}/{prev_delays['Maximum']}/{prev_delays['Average']}"
-            prev_delays = f"""
-PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
+        prev_delays = ""            
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
         potential_pilots = self.capture_pilots(airport, current_data)
@@ -470,6 +528,13 @@ PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
         end_date = self.determine_date(end_time, adl_time)
+        cum_start = f"{start_date}/{start_time}Z"
+        if control_element in self.ground_stopped:
+            prev_delays = self.ground_stopped[control_element]["Prog_Info"]
+            prev_delay_amounts = f"{prev_delays['Total']}/{prev_delays['Maximum']}/{prev_delays['Average']}"
+            if prev_delays.get("CUM_START") is not None: cum_start = f"{prev_delays['CUM_START']}Z"
+            prev_delays = f"""
+PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         manual, tiers, stopped_facilities = self.facility_stopper(airport_center)
         if len(stopped_facilities) == 0:
             stopped_facilities.add(airport_center)
@@ -489,14 +554,13 @@ ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"""
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
         signature = f"{sig_date_time}"
-        content = f"vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
-        content1 = (f"""```
+        content = (f"""```
 vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP
 CTL ELEMENT: {airport[-3:]}
 ELEMENT TYPE: APT
 ADL TIME: {adl_time}Z
 GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z
-CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z
+CUMULATIVE PROGRAM PERIOD:{cum_start} - {end_date}/{end_time}Z
 FLT INCL: {scope} {stopped_facilities} {stopped_airports} {prev_delays}
 NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays}
 PROBABILITY OF EXTENSION: {POE}
@@ -507,14 +571,5 @@ EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
 SIGNATURE: {signature}```
   """)
         
-        print("Preview:")
-        print(content1)
-        verify = input("Do you want to publish this advisory? ").upper()
-        if verify[0] == "Y": self.publish_to_discord("Shane (Goodest)",content1)
+        if self.preview(content): self.publish_to_discord("Shane (Goodest)",content)
         print("Returning to menu.")
-        # self.publish_to_discord("Shane (Goodest)", content1)
-        # discord_dum = {'username':'Shane (Gooder)',
-        #               'content': content1}
-        # requests.post(self.discord, discord_dum) #Will this post???
-        # # print(content1)
-
