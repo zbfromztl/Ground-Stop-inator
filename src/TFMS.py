@@ -13,7 +13,7 @@ class TFMS:
         self.airport_db = airport_db["airfields"]
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
-        ground_stopped = [] #this doesn't do anything rn lool
+        ground_stopped = {} #I want the format to be "airport":{"N12345":{proposed,total}}
         self.advisory_num = 000
         self.advisory_day = 00
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
@@ -260,7 +260,7 @@ class TFMS:
                 except:
                     return False
     
-    def stopped_flights(self, flight_plans, facilities, airports, end_time):
+    def stopped_flights(self, flight_plans, facilities, airports, end_time, control_element):
         affected = []
         for pilot in flight_plans:
              if self.captured[pilot]["origin_center"] in facilities:
@@ -306,12 +306,14 @@ class TFMS:
             # if delayed_flight in affected:
                 delay = f"{delayhour}{delaymin}"
                 delay = int(delay)
-                delays.append(delay)
+                delays.update(delayed_flight:{"proposed":ptime, "total_delay":delay})
                 if delay > maxDelay: maxDelay = delay
                 totalDelay = totalDelay + delay
                 flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
+        for aircraft in delays:
+            self.ground_stopped.update(control_element:{aircraft:{"proposed":aircraft["proposed"],"total_delay":aircraft["total_delay"]}})
         return totalDelay, maxDelay, average_delay
         
     def format_lists_for_display(self, list):
@@ -340,7 +342,7 @@ class TFMS:
         if manual == False:
             scope = f"(TIER {tiers}) "
         stopped_airports = self.airport_stopper()
-        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time)
+        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time, airport)
         if len(stopped_airports) > 0:
             stopped_airports = self.format_lists_for_display(stopped_airports)
             stopped_airports = f"""
