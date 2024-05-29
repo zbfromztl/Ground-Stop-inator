@@ -31,8 +31,22 @@ class TFMS:
                 self.cdr_swap_statement()
             elif command in ("ARR","ARRIVAL DELAYS","ARRIVALDELAYS","ARRIVAL-DELAYS"):
                 self.arrival_delays()
+            elif command in ("ADVZY"):
+                self.set_advisory_number()
+            elif command in ("PROGRAMS"):
+                print(self.ground_stopped)
             else:
                 print("Sorry... not sure I understand. Perhaps you should run the help command?")
+
+
+    def set_advisory_number(self):
+        print(f"Current advisory number: {self.advisory_num}.")
+        new_number = input("Input new advisory number: ")
+        if new_number.isdigit():
+            self.advisory_num = new_number
+            print(f"Advisory number successfully changed to {self.advisory_num}")
+        else:
+            print("Error. Returning to main menu.")
 
     def advisory_numberinator(self):
         day = time.gmtime().tm_mday
@@ -67,7 +81,7 @@ class TFMS:
             start_time = input("(LEAVE BLANK IF NOW OR IN THE PAST!) Enter start time: ").upper()
             start_time = start_time.replace(" ", "")
             if start_time == "": 
-                start_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+                start_time = self.format_time()
                 return start_time
             else:
                 if start_time.isdigit() and len(start_time) == 4:
@@ -266,14 +280,14 @@ class TFMS:
                 except:
                     return False
     
-    def stopped_flights(self, flight_plans, facilities, airports, end_time, control_element):
+    def stopped_flights(self, flight_plans, facilities, airports, start_date, start_time, end_time, control_element):
         affected = []
         for pilot in flight_plans:
              if self.captured[pilot]["origin_center"] in facilities:
                  affected.append(pilot)
              elif self.captured[pilot]["origin"] in airports:
                  affected.append(pilot)
-        delays = []
+        delays = {}
         maxDelay = 0
         totalDelay = 0
         flights_delayed = 0
@@ -312,15 +326,19 @@ class TFMS:
             # if delayed_flight in affected:
                 delay = f"{delayhour}{delaymin}"
                 delay = int(delay)
-                delays.update(delayed_flight = {"proposed":ptime, "total_delay":delay})
+                delays.update({delayed_flight:{"proposed":ptime, "total_delay":delay}})
                 if delay > maxDelay: maxDelay = delay
                 totalDelay = totalDelay + delay
                 flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
-        self.ground_stopped.update(control_element = {"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}})
+        self.ground_stopped.update({control_element:{"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}}})
+        if self.ground_stopped[control_element].get("CUM_START") is None:
+            self.ground_stopped[control_element].update({control_element:{"CUM_START":f"{start_date}/{start_time}"}})
         for aircraft in delays:
-            self.ground_stopped.update(control_element = {aircraft:{"proposed":aircraft["proposed"],"total_delay":aircraft["total_delay"]}})
+            proposed_time = delays[aircraft]["proposed"]
+            the_total_delay = delays[aircraft]["total_delay"]
+            self.ground_stopped.update({control_element:{aircraft:{"proposed":proposed_time,"total_delay":the_total_delay}}})
         return totalDelay, maxDelay, average_delay
         
     def format_lists_for_display(self, list):
@@ -343,6 +361,13 @@ class TFMS:
         header_date = f"{mon}/{date}/{time.gmtime().tm_year}"
         sig_date_time = f"{str(time.gmtime().tm_year)[-2:]}/{mon}/{date} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
         return header_date, sig_date_time
+    
+    def format_time(self):
+        hour = str(time.gmtime().tm_hour)
+        if len(hour) < 2: hour = f"0{hour}"
+        min = str(time.gmtime().tm_min)
+        if len(min) < 2: min = f"0{min}"
+        return f"{hour}{min}"
         
     def arrival_delays(self):
         advisory_number = self.advisory_numberinator()
@@ -379,7 +404,7 @@ UPDATES WILL FOLLOW IF NECESSARY
     def cdr_swap_statement(self):
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
-        adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+        adl_time = self.format_time()
         airport_center = self.airport_db.get(airport).get("ARTCC")
         start_time = self.determine_start_time()
         start_date = self.determine_date(start_time, adl_time)
@@ -427,7 +452,7 @@ ORIG                DEST                 ROUTE
         
     def generate_ground_stop(self):
         header_date, sig_date_time = self.format_signatures()
-        print(f"The current zulu date/time is {sig_date_time}.")
+        print(f"The current zulu date/time is {self.format_time()}.")
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
         control_element = airport
@@ -440,7 +465,7 @@ PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
         potential_pilots = self.capture_pilots(airport, current_data)
-        adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+        adl_time = self.format_time()
         start_time = self.determine_start_time()
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
@@ -452,7 +477,7 @@ PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         if manual == False:
             scope = f"(TIER {tiers}) "
         stopped_airports = self.airport_stopper()
-        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time, control_element)
+        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, start_date, start_time, end_time, control_element)
         if len(stopped_airports) > 0:
             stopped_airports = self.format_lists_for_display(stopped_airports)
             stopped_airports = f"""
