@@ -11,8 +11,10 @@ Version: Python 3.11.3
 
 # To do:
  - [ ] Publish ground stop advisories (with advisory number, automatically)
+ - [ ] Add more advisory types
  - [X] Add discord bot integration
  - [ ] Clean 'er up
+  - [ ] Especially stuff involving dates...
 
 # Features:
   * Yo mama
