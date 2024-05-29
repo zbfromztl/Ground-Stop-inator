@@ -31,7 +31,7 @@ class TFMS:
                 print("Sorry... not sure I understand. Perhaps you should run the help command?")
 
     def advisory_numberinator(self):
-        day = self.determine_date()
+        day = time.gmtime().tm_mday
         if day = self.advisory_day:
             self.advisory_num = self.advisory_num + 1
         else: 
@@ -312,6 +312,7 @@ class TFMS:
                 flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
+        self.ground_stopped.update(control_element:{"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}})
         for aircraft in delays:
             self.ground_stopped.update(control_element:{aircraft:{"proposed":aircraft["proposed"],"total_delay":aircraft["total_delay"]}})
         return totalDelay, maxDelay, average_delay
@@ -323,10 +324,61 @@ class TFMS:
         the_list = the_list.replace("}","")
         return the_list
 
+    def publish_to_discord(self,username,content):
+        staging = {'username':username,
+                  'content':content}
+        requests.post(self.discord, staging)
+
+    def cdr_swap_statement(self):
+        advisory_number = self.advisory_numberinator()
+        airport = self.determine_airport()
+        adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
+        airport_center = self.airport_db.get(airport).get("ARTCC")
+        start_time = self.determine_start_time()
+        start_date = self.determine_date(start_time, adl_time)
+        end_time = self.determine_end_time()
+        end_date = self.determine_date(end_time, adl_time)
+        facilities_included = self.process_tiers("T1", airport_center)
+        POE = input("Probability of extension? NONE/LOW/MODERATE/HIGH ").upper()
+        Condition = input("Impacting Conditions: ").upper()
+        Comments = input("Comments: ").upper()
+        Restrictions = input("Associated Restrictions: ").upper()
+        Modifies = input("Modifies route structure in (list previous advisories, or, leave blank): ").upper()
+        content = f"""vATCSCC ADVZY {advisory_number} DCC {time.gmtime().strftime('%m/%d/%Y')} ROUTE FYI
+NAME: {airport}_CDRS_SWAP
+CONSTRAINED AREA: {airport_center}
+REASON: {Condition}
+INCLUDE TRAFFIC: {airport} DEPARTURES TO UNKN
+FACILITIES INCLUDED: {facilities_included}
+FLIGHT STATUS: ALL_FLIGHTS
+VALID: ETD {start_date}{start_time} TO {end_date}{end_time}
+PROBABILITY OF EXTENSION: {POE}
+REMARKS: {Comments}
+ASSOCIATED RESTRICTIONS: {Restrictions}
+MODIFICATIONS: 
+ROUTES:
+
+ORIG                DEST                 ROUTE
+----                ----                 -----
+{airport}                UNKN                 CDR RTE:DEPARTURES CAN     
+                                         EXPECT CDRS/SWAP DUE TO    
+                                         WEATHER. USERS SHOULD FILE 
+                                         NORMAL ROUTES BUT FUEL     
+                                         ACCORDINGLY.
+        """
+        self.publish_to_discord("Shane (real)",content)
+        
     def generate_ground_stop(self):
         print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
+        control_element = airport
+        prev_delays = ""
+        if control_element in self.ground_stopped:
+            prev_delays = self.ground_stopped[control_element]["PREV_DELAYS"]
+            prev_delay_amounts = f"{prev_delays["Total"]}/{prev_delays["Maximum"]}/{prev_delays["Average"]}"
+            prev_delays = f"""
+            PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
         potential_pilots = self.capture_pilots(airport, current_data)
@@ -342,7 +394,7 @@ class TFMS:
         if manual == False:
             scope = f"(TIER {tiers}) "
         stopped_airports = self.airport_stopper()
-        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time, airport)
+        calculate_delays = self.stopped_flights(potential_pilots, stopped_facilities, stopped_airports, end_time, control_element)
         if len(stopped_airports) > 0:
             stopped_airports = self.format_lists_for_display(stopped_airports)
             stopped_airports = f"""
@@ -350,7 +402,7 @@ class TFMS:
         else:
             stopped_airports = ""
         stopped_facilities = self.format_lists_for_display(stopped_facilities)
-        POE = input("Probability of extension? NONE/LOW/MEDIUM/HIGH ").upper()
+        POE = input("Probability of extension? NONE/LOW/MODERATE/HIGH ").upper()
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
         signature = f"{time.gmtime().tm_year}/{time.gmtime().tm_mon}/{time.gmtime().tm_mday} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
@@ -362,8 +414,7 @@ ELEMENT TYPE: APT
 ADL TIME: {adl_time}Z
 GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z
 CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z
-FLT INCL: {scope} {stopped_facilities} {stopped_airports}
-PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN
+FLT INCL: {scope} {stopped_facilities} {stopped_airports} {prev_delays}
 NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays}
 PROBABILITY OF EXTENSION: {POE}
 IMPACTING CONDITION: {Condition}
@@ -372,8 +423,9 @@ COMMENTS: {Comments}
 EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time}
 SIGNATURE: {signature}```
   """)
-        discord_dum = {'username':'Shane (Gooder)',
-                      'content': content1}
-        requests.post(self.discord, discord_dum) #Will this post???
-        # print(content1)
+        self.publish_to_discord("Shane (Goodest)", content1)
+        # discord_dum = {'username':'Shane (Gooder)',
+        #               'content': content1}
+        # requests.post(self.discord, discord_dum) #Will this post???
+        # # print(content1)
 
