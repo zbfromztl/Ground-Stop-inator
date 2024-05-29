@@ -14,7 +14,8 @@ class TFMS:
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
         ground_stopped = [] #this doesn't do anything rn lool
-        advisory_no = 001
+        self.advisory_num = 000
+        self.advisory_day = 00
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
         pass
 
@@ -23,11 +24,20 @@ class TFMS:
             command = input("Good afternoon! What command would you like to run? ").upper()
             # ? maybe? command_matrix = ["command":"function"]
             if command in ("HELP","COMMANDS","CMDS","?"):
-                print("Available commands are: ")
+                print("Available commands are: HELP/COMMANDS/CMDS/?, GS/GROUNDSTOP/STOP, HOTLINE, ARR/ARRIVALDELAYS/ARRIVAL-DELAYS, CDR/SWAP/CDRSWAP")
             elif command in ("GS","GROUNDSTOP","STOP"):
                 self.generate_ground_stop()
             else:
                 print("Sorry... not sure I understand. Perhaps you should run the help command?")
+
+    def advisory_numberinator(self):
+        day = self.determine_date()
+        if day = self.advisory_day:
+            self.advisory_num = self.advisory_num + 1
+        else: 
+            self.advisory_num = 0
+            self.advisory_day = day
+        return self.advisory_num{:03}
     
     def determine_airport(self):
         while(True):
@@ -311,9 +321,9 @@ class TFMS:
         the_list = the_list.replace("}","")
         return the_list
 
-
     def generate_ground_stop(self):
         print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
+        advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
