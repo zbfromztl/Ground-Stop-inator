@@ -13,7 +13,7 @@ class TFMS:
         self.airport_db = airport_db["airfields"]
         self.fence = 0.026079 #How far from the airport should we look to see if we have a pilot?
         #Keep track of ground stops by airport.
-        ground_stopped = {} #I want the format to be "airport":{"N12345":{proposed,total}}
+        self.ground_stopped = {} #I want the format to be "airport":{"N12345":{proposed,total}}
         self.advisory_num = 000
         self.advisory_day = 00
         self.discord = "https://discord.com/api/webhooks/1124601273078005830/Nf2AARyX5Gif_gszLx4qYfp6Jf4_2p_4OfBhExtz-yMES84F3SQMscfFq5UTxkyunIEf"
@@ -27,17 +27,23 @@ class TFMS:
                 print("Available commands are: HELP/COMMANDS/CMDS/?, GS/GROUNDSTOP/STOP, HOTLINE, ARR/ARRIVALDELAYS/ARRIVAL-DELAYS, CDR/SWAP/CDRSWAP")
             elif command in ("GS","GROUNDSTOP","STOP"):
                 self.generate_ground_stop()
+            elif command in ("CDR","SWAP","CDRSWAP"):
+                self.cdr_swap_statement()
+            elif command in ("ARR","ARRIVAL DELAYS","ARRIVALDELAYS","ARRIVAL-DELAYS"):
+                self.arrival_delays()
             else:
                 print("Sorry... not sure I understand. Perhaps you should run the help command?")
 
     def advisory_numberinator(self):
         day = time.gmtime().tm_mday
-        if day = self.advisory_day:
+        if day == self.advisory_day:
             self.advisory_num = self.advisory_num + 1
         else: 
-            self.advisory_num = 0
+            self.advisory_num = 1
             self.advisory_day = day
-        return self.advisory_num{:03}
+        advisory_number = str(self.advisory_num)
+        while len(advisory_number) < 3: advisory_number = f"0{advisory_number}"
+        return advisory_number
     
     def determine_airport(self):
         while(True):
@@ -306,15 +312,15 @@ class TFMS:
             # if delayed_flight in affected:
                 delay = f"{delayhour}{delaymin}"
                 delay = int(delay)
-                delays.update(delayed_flight:{"proposed":ptime, "total_delay":delay})
+                delays.update(delayed_flight = {"proposed":ptime, "total_delay":delay})
                 if delay > maxDelay: maxDelay = delay
                 totalDelay = totalDelay + delay
                 flights_delayed = flights_delayed + 1
         if flights_delayed > 0:
             average_delay = totalDelay / flights_delayed
-        self.ground_stopped.update(control_element:{"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}})
+        self.ground_stopped.update(control_element = {"PREV_DELAYS":{"Total":totalDelay, "Maximum":maxDelay,"Average":average_delay}})
         for aircraft in delays:
-            self.ground_stopped.update(control_element:{aircraft:{"proposed":aircraft["proposed"],"total_delay":aircraft["total_delay"]}})
+            self.ground_stopped.update(control_element = {aircraft:{"proposed":aircraft["proposed"],"total_delay":aircraft["total_delay"]}})
         return totalDelay, maxDelay, average_delay
         
     def format_lists_for_display(self, list):
@@ -329,6 +335,15 @@ class TFMS:
                   'content':content}
         requests.post(self.discord, staging)
 
+    def format_signatures(self):
+        mon = str(time.gmtime().tm_mon)
+        if len(mon) < 2: mon = f"0{mon}"
+        date = str(time.gmtime().tm_mday)
+        if len(date) < 2: date = f"0{date}"
+        header_date = f"{mon}/{date}/{time.gmtime().tm_year}"
+        sig_date_time = f"{str(time.gmtime().tm_year)[-2:]}/{mon}/{date} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
+        return header_date, sig_date_time
+        
     def arrival_delays(self):
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
@@ -342,7 +357,8 @@ class TFMS:
         Condition = input("Impacting Condition(s): ").upper()
         Duration = input("Length of Holding (Minutes): ").upper()
         Comments = input("Remarks: ").upper()
-        content = f"""vATCSCC ADVZY {advisory_number} {time.gmtime().strftime('%m/%d/%Y')} {airport_long_name} ARRIVAL DELAYS
+        header_date, sig_date_time = self.format_signatures()
+        content = f"""vATCSCC ADVZY {advisory_number} {header_date} {airport_long_name} ARRIVAL DELAYS
 EVENT TIME: {start_date}/{start_time} - {end_date}/{end_time}
 CONSTRAINED FACILITIES: {airport_center}
 USERS CAN EXPECT ARRIVAL DELAYS / AIRBORNE HOLDING INTO 
@@ -351,11 +367,11 @@ USERS CAN EXPECT ARRIVAL DELAYS / AIRBORNE HOLDING INTO
 UPDATES WILL FOLLOW IF NECESSARY
 
 {start_date}{start_time} - {end_date}{end_time}
-{time.gmtime().strftime('%y/%m/%d %H:%M')}
+{sig_date_time}
         """
         print("Preview:")
         print(content)
-        verify = input("Do you want to publish this advisory?").upper()
+        verify = input("Do you want to publish this advisory? ").upper()
         if verify[0] == "Y": self.publish_to_discord("ARRIVAL DELAY ALERT",content)
         print("Returning to menu.")
         
@@ -369,13 +385,15 @@ UPDATES WILL FOLLOW IF NECESSARY
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
         end_date = self.determine_date(end_time, adl_time)
-        facilities_included = self.process_tiers("T1", airport_center)
+        tier, facilities_included = self.process_tiers("T1", airport_center)
+        facilities_included = self.format_lists_for_display(facilities_included)
         POE = input("Probability of extension? NONE/LOW/MODERATE/HIGH ").upper()
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
         Restrictions = input("Associated Restrictions: ").upper()
         Modifies = input("Modifies route structure in (list previous advisories, or, leave blank): ").upper()
-        content = f"""vATCSCC ADVZY {advisory_number} DCC {time.gmtime().strftime('%m/%d/%Y')} ROUTE FYI
+        header_date, sig_date_time = self.format_signatures()
+        content = f"""vATCSCC ADVZY {advisory_number} DCC {header_date} ROUTE FYI
 NAME: {airport}_CDRS_SWAP
 CONSTRAINED AREA: {airport_center}
 REASON: {Condition}
@@ -386,7 +404,7 @@ VALID: ETD {start_date}{start_time} TO {end_date}{end_time}
 PROBABILITY OF EXTENSION: {POE}
 REMARKS: {Comments}
 ASSOCIATED RESTRICTIONS: {Restrictions}
-MODIFICATIONS: 
+MODIFICATIONS: {Modifies}
 ROUTES:
 
 ORIG                DEST                 ROUTE
@@ -398,26 +416,27 @@ ORIG                DEST                 ROUTE
                                          ACCORDINGLY.
                                          
 {start_date}{start_time} - {end_date}{end_time}
-{time.gmtime().strftime('%y/%m/%d %H:%M')}
+{sig_date_time}
         """
         
         print("Preview:")
         print(content)
-        verify = input("Do you want to publish this advisory?").upper()
+        verify = input("Do you want to publish this advisory? ").upper()
         if verify[0] == "Y": self.publish_to_discord("Shane (real)",content)
         print("Returning to menu.")
         
     def generate_ground_stop(self):
-        print(f"The current zulu time is {time.gmtime().tm_hour}{time.gmtime().tm_min}.")
+        header_date, sig_date_time = self.format_signatures()
+        print(f"The current zulu date/time is {sig_date_time}.")
         advisory_number = self.advisory_numberinator()
         airport = self.determine_airport()
         control_element = airport
         prev_delays = ""
         if control_element in self.ground_stopped:
             prev_delays = self.ground_stopped[control_element]["PREV_DELAYS"]
-            prev_delay_amounts = f"{prev_delays["Total"]}/{prev_delays["Maximum"]}/{prev_delays["Average"]}"
+            prev_delay_amounts = f"{prev_delays['Total']}/{prev_delays['Maximum']}/{prev_delays['Average']}"
             prev_delays = f"""
-            PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
+PREV TOTAL, MAXIMUM, AVERAGE DELAYS: {prev_delay_amounts}"""
         airport_center = self.airport_db.get(airport).get("ARTCC")
         current_data = requests.get(self.json_url).json()
         potential_pilots = self.capture_pilots(airport, current_data)
@@ -437,14 +456,14 @@ ORIG                DEST                 ROUTE
         if len(stopped_airports) > 0:
             stopped_airports = self.format_lists_for_display(stopped_airports)
             stopped_airports = f"""
-            ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"""
+ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"""
         else:
             stopped_airports = ""
         stopped_facilities = self.format_lists_for_display(stopped_facilities)
         POE = input("Probability of extension? NONE/LOW/MODERATE/HIGH ").upper()
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
-        signature = f"{time.gmtime().tm_year}/{time.gmtime().tm_mon}/{time.gmtime().tm_mday} {time.gmtime().tm_hour}:{time.gmtime().tm_min}"
+        signature = f"{sig_date_time}"
         content = f"vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP CTL ELEMENT: {airport[-3:]} ELEMENT TYPE: APT ADL TIME: {adl_time}Z GROUND STOP PERIOD: {start_date}/{start_time}Z - {end_date}/{end_time}Z CUMULATIVE PROGRAM PERIOD:{start_date}/{start_time}Z - {end_date}/{end_time}Z FLT INCL: (MANUAL) {stopped_facilities} {stopped_airports} PREV TOTAL, MAXIMUM, AVERAGE DELAYS: UNKNOWN NEW TOTAL, MAXIMUM, AVERAGE DELAYS: {calculate_delays} PROBABILITY OF EXTENSION: {POE} IMPACTING CONDITION: {Condition} COMMENTS: {Comments}  EFFECTIVE TIME: {start_date}{start_time} - {end_date}{end_time} SIGNATURE: {signature}"
         content1 = (f"""```
 vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP
@@ -464,8 +483,8 @@ SIGNATURE: {signature}```
   """)
         
         print("Preview:")
-        print(content)
-        verify = input("Do you want to publish this advisory?").upper()
+        print(content1)
+        verify = input("Do you want to publish this advisory? ").upper()
         if verify[0] == "Y": self.publish_to_discord("Shane (Goodest)",content1)
         print("Returning to menu.")
         # self.publish_to_discord("Shane (Goodest)", content1)

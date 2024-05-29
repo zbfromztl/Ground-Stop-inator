@@ -40,7 +40,7 @@ class Main():
         # thread1: Timer that updates flightplan data when I new JSON is uploaded
         # user_input = threading.Thread(target=callsign_requester.request_callsign_from_user)
         # thread2: listens for user inputs for ground stop requests
-        groundstops = threading.Thread(target=tfms.generate_ground_stop)
+        groundstops = threading.Thread(target=tfms.listener)
 
 
 
