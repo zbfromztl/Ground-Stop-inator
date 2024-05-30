@@ -46,6 +46,7 @@ class TFMS:
         new_number = input("Input new advisory number: ")
         if new_number.isdigit():
             self.advisory_num = int(new_number)
+            self.advisory_day = time.gmtime().tm_mday
             print(f"Advisory number successfully changed to {self.advisory_num}.")
         else:
             print("Error. Returning to main menu.")
@@ -95,9 +96,12 @@ class TFMS:
                         
     def determine_end_time(self):
         while(True):
-            end_time = input("Enter end time: ").upper()
+            end_time = input("(LEAVE BLANK IF NOW/CANCELING PROGRAM) Enter end time: ").upper()
             end_time = end_time.replace(" ", "")
-            if end_time.isdigit() and 3 <= len(end_time) <= 4:
+            if end_time == "":
+                end_time = self.format_time()
+                return end_time
+            elif end_time.isdigit() and 3 <= len(end_time) <= 4:
                 if len(end_time) == 3: end_time = f"0{end_time}"
                 if 0 <= int(end_time) < 2360: 
                     if int(end_time[-2:]) > 59:
@@ -393,22 +397,34 @@ class TFMS:
         advisory_number = self.advisory_numberinator()
         header_date, sig_date_time = self.format_signatures()
         hotline_name = input("Which hotline would you like to open/close? ").upper()
-        status = input(f"Are you activating or deactivating the {hotline_name} hotline? ").upper()
-        if status[0] == "A": status = "ACTIVATING" 
-        else: status = "DEACTIVATING"
+        # status = input(f"Are you activating or deactivating the {hotline_name} hotline? ").upper()
+        # if status[0] == "A": status = "ACTIVATING" 
+        # else: status = "DEACTIVATING"
+        if self.ground_stopped.get(hotline_name) is None:
+            status = "ACTIVATING"
+        else:
+            status = "DEACTIVATING"
         adl_time = f"{time.gmtime().tm_hour}{time.gmtime().tm_min}"
-        start_time = self.determine_start_time()
-        start_date = self.determine_date(start_time, adl_time)
-        end_time = self.determine_end_time()
-        end_date = self.determine_date(end_time, adl_time)
-        constrained_facs = input("What facilities are constrained? Enter all that apply.").upper()
+        constrained_facs = input("What facilities are constrained? Enter all that apply: ").upper()
         if status == "ACTIVATING":
+            print(f"Activating {hotline_name} hotline.")
+            start_time = self.determine_start_time()
+            start_date = self.determine_date(start_time, adl_time)
+            end_time = self.determine_end_time()
+            end_date = self.determine_date(end_time, adl_time)
+            self.ground_stopped.update({"HOTLINE":{hotline_name:start_time}})
             constrained_reason = input("Why is the hotline being activated? (VOLUME/WEATHER/OTHER) ").upper()
-            location = input("Where is the hotline being hosted? (VATUSA TEAMSPEAK)").upper()
-            location_link = input("Is there an IP/PIN to join? (TS.VATUSA.NET, NO PIN)").upper()
-            participation_type = input("Is participation mandatory or recommended?").upper()
-            participation_parties = input(f"Who is participation {participation_type} for?").upper()
-            poc = input("Who is the point of contact if there are issues?").upper()
+            if constrained_reason == "": constrained_reason = "VOLUME"
+            location = input("Where is the hotline being hosted? (VATUSA TEAMSPEAK) ").upper()
+            if location == "": location = "VATUSA TEAMSPEAK"
+            location_link = input("Is there an IP/PIN to join? (TS.VATUSA.NET, NO PIN) ").upper()
+            if location_link == "": location_link = "TS.VATUSA.NET, NO PIN"
+            participation_type = input("Is participation mandatory or recommended? ").upper()
+            if participation_type == "": participation_type = "MANDATORY"
+            participation_parties = input(f"Who is participation {participation_type} for? ").upper()
+            while participation_parties == "": participation_parties = input(f"Who is participation {participation_type} for?").upper()
+            poc = input("Who is the point of contact if there are issues? ").upper()
+            if poc == "": poc = "THE NAT'L OPERATIONS MANAGER"
             content = f"""```vATCSCC ADVZY {advisory_number} {header_date} {hotline_name} HOTLINE_FYI
 EVENT TIME: {start_date}/{start_time} - {end_date}/{end_time}
 CONSTRAINED FACILITIES: {constrained_facs}
@@ -421,18 +437,35 @@ PARTICIPANTS ARE WELCOME TO JOIN. PLEASE MESSAGE {poc} IF YOU HAVE ISSUES OR QUE
 {start_date}{start_time} - {end_date}{end_time}
 {sig_date_time}```
 """
+            if self.preview(content): self.publish_to_discord("HOTLINE STATUS",content)
         else:
+            if self.ground_stopped.get(hotline_name) is not None:
+                print(f"Closing {hotline_name} hotline.")
+                start_time = self.ground_stopped["HOTLINE"][hotline_name]
+                if start_time < self.format_time():
+                    start_date = time.gmtime().tm_mday - 1
+                    while len(start_date) < 2: start_date = f"0{start_date}"
+                else:
+                    start_date = time.gmtime().tm_mday
+                    while len(start_date) < 2: start_date = f"0{start_date}"
+            else:
+                start_time = self.determine_start_time()
+                start_date = time.gmtime().tm_mday
+            end_time = self.determine_end_time()
+            end_date = self.determine_date(end_time, adl_time)
             content = f"""```vATCSCC ADVZY {advisory_number} {header_date} {hotline_name} HOTLINE_FYI
 EVENT TIME: {time.gmtime().tm_mday}/{start_time} - {time.gmtime().tm_mday}/{end_time}
 CONSTRAINED FACILITIES: {constrained_facs}
 THE {hotline_name} HOTLINE IS NOW TERMINATED.
 
-{time.gmtime().tm_mday}{start_time} - {time.gmtime().tm_mday}{end_time}
+{start_date}{start_time} - {time.gmtime().tm_mday}{end_time}
 {sig_date_time}```
             """
 
-        if self.preview(content): self.publish_to_discord("HOTLINE STATUS",content)
-        print("Returning to menu.")
+            if self.preview(content): self.publish_to_discord("HOTLINE STATUS",content)
+            print("Returning to menu.")
+        # else:
+                # print(f"Are you sure you activated a hotline by the name of {hotline_name}? I'm not seeing anything. Try running PROGRAMS for more details.")
 
         
     def arrival_delays(self):
@@ -528,6 +561,9 @@ ORIG                DEST                 ROUTE
         start_date = self.determine_date(start_time, adl_time)
         end_time = self.determine_end_time()
         end_date = self.determine_date(end_time, adl_time)
+        is_cancellation = False
+        if end_time == self.format_time():
+            is_cancellation = True
         cum_start = f"{start_date}/{start_time}Z"
         if control_element in self.ground_stopped:
             prev_delays = self.ground_stopped[control_element]["Prog_Info"]
@@ -554,7 +590,20 @@ ADDITIONAL DEP FACILITIES INCLUDED: {stopped_airports}"""
         Condition = input("Impacting Conditions: ").upper()
         Comments = input("Comments: ").upper()
         signature = f"{sig_date_time}"
-        content = (f"""```
+        if is_cancellation:
+            content = (f"""```vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GS CNX
+CTL ELEMENT: {airport[-3:]}
+ELEMENT TYPE: APT
+ADL TIME: {adl_time}Z
+GS CNX PERIOD:{cum_start} - {end_date}/{end_time}Z
+COMMENTS: {Comments}
+
+{cum_start} - {end_date}{end_time}
+{signature}``````
+                       """)
+        else:
+
+            content = (f"""```
 vATCSCC ADVZY {advisory_number} {airport[-3:]}/{airport_center} CDM GROUND STOP
 CTL ELEMENT: {airport[-3:]}
 ELEMENT TYPE: APT
