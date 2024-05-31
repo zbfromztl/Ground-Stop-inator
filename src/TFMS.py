@@ -24,7 +24,7 @@ class TFMS:
             command = input("Good afternoon! What command would you like to run? ").upper()
             # ? maybe? command_matrix = ["command":"function"]
             if command in ("HELP","COMMANDS","CMDS","?"):
-                print("Available commands are: HELP/COMMANDS/CMDS/?, GS/GROUNDSTOP/STOP, HOTLINE, ARR/ARRIVALDELAYS/ARRIVAL-DELAYS, CDR/SWAP/CDRSWAP")
+                print("Available commands are: HELP/COMMANDS/CMDS/?, ADVZY, GS/GROUNDSTOP/STOP, HOTLINE, ARR/ARRIVALDELAYS/ARRIVAL-DELAYS, CDR/SWAP/CDRSWAP, PROGRAMS")
             elif command in ("GS","GROUNDSTOP","STOP"):
                 self.generate_ground_stop()
             elif command in ("CDR","SWAP","CDRSWAP"):
